@@ -30,12 +30,33 @@ async function reviewCode(patch, filename) {
             Do not use markdown code blocks.
             `;
 
-    const response = await client.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt
-    })
+    let lastError;
 
-    return response.text
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            const response = await client.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: prompt
+            });
+
+            return response.text;
+        } catch (error) {
+            lastError = error;
+
+            if (error.status !== 503) {
+                throw error;
+            }
+
+            console.log(`Retry ${attempt}/3`);
+
+            await new Promise(resolve =>
+                setTimeout(resolve, attempt * 2000)
+            );
+        }
+    }
+
+    throw lastError;
+
 }
 
 
